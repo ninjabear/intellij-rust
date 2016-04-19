@@ -68,6 +68,16 @@ abstract class RustTestCaseBase : LightPlatformCodeInsightFixtureTestCase(), Rus
             camelCaseName.split("(?=[A-Z])".toRegex())
                 .map { it.toLowerCase() }
                 .joinToString("_")
+
+        @JvmStatic
+        fun rustSources(): VirtualFile {
+            val sdkArchiveFile = LocalFileSystem.getInstance()
+                .findFileByPath("${RustTestCase.testResourcesPath}/rustc-src.zip")
+
+            return checkNotNull(sdkArchiveFile?.let { JarFileSystem.getInstance().getJarRootForLocalFile(it) }) {
+                "Rust sources archive not found. Run `./gradlew test` to download the archive."
+            }
+        }
     }
 
     open class RustProjectDescriptor : LightProjectDescriptor() {
@@ -106,14 +116,7 @@ abstract class RustTestCaseBase : LightPlatformCodeInsightFixtureTestCase(), Rus
 
     class WithStdlibRustProjectDescriptor : RustProjectDescriptor() {
         override fun testCargoProject(module: Module, contentRoot: String): CargoProjectDescriptionData {
-            val sourcesArchive = LocalFileSystem.getInstance()
-                .findFileByPath("${RustTestCase.testResourcesPath}/rustc-src.zip")
-
-            val sourceRoot = checkNotNull(sourcesArchive?.let {
-                JarFileSystem.getInstance().getJarRootForLocalFile(it)
-            }) { "Rust sources archive not found. Run `./gradlew test` to download the archive." }
-
-            val stdlibPackages = module.attachStandardLibrary(sourceRoot)
+            val stdlibPackages = module.attachStandardLibrary(rustSources())
             val allPackages = stdlibPackages + testCargoPackage(contentRoot)
             return CargoProjectDescriptionData(0, allPackages.toMutableList(), ArrayList())
         }
